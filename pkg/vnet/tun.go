@@ -10,15 +10,20 @@ import (
 
 type TunInterface struct {
 	tun *water.Interface
+	name string
+	address string
 }
 
-func NewTunInterface() (*TunInterface, error) {
-	iface := &TunInterface{}
+func NewTunInterface(name string, address string) (*TunInterface, error) {
+	iface := &TunInterface{
+		name: name,
+		address: address,
+	}
 
 	ifconfig := water.Config{
 		DeviceType: water.TUN,
 	}
-	ifconfig.Name = "tun0"
+	ifconfig.Name = name
 
 	ifce, err := water.New(ifconfig)
 	if err != nil {
@@ -36,10 +41,11 @@ func (iface *TunInterface) Up() error {
 		if err != nil {
 			return fmt.Errorf("ifconfig fail: %s %v", out, err)
 		}
-		tun, _ := netlink.LinkByName("tun0")
-		addr, _ := netlink.ParseAddr("10.10.0.10/24")
-		netlink.AddrAdd(tun, addr)
-		fmt.Println("tun0 add address: 10.10.0.10/24")
+		if tun, err := netlink.LinkByName(iface.name); err == nil {
+			addr, _ := netlink.ParseAddr(iface.address)
+			netlink.AddrAdd(tun, addr)
+			fmt.Printf("%s add address: %s \n", iface.name, iface.address)
+		}
 
 	default:
 		return fmt.Errorf("unsupported: %s %s", runtime.GOOS, runtime.GOARCH)

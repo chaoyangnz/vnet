@@ -2,22 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/chaoyangnz/vnet"
+	"github.com/chaoyangnz/pkg/vnet"
 	"os"
 	"os/signal"
 	"syscall"
 )
 
 func main() {
-	iface, err := vnet.NewTunInterface()
+	tif, err := vnet.NewTunInterface("tun0", "10.0.0.1/24")
 	if err != nil {
-		fmt.Println("[E] new interface fail: ", err)
+		fmt.Println("[E] new interface 1 fail: ", err)
 		return
 	}
-
-	//defer iface.Close()
-	iface.Up()
-	fmt.Printf("utun10 is up\n")
+	tif.Up()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -25,11 +22,11 @@ func main() {
 		sig := <-sigs
 		fmt.Println()
 		fmt.Println(sig)
-		iface.Close()
+		tif.Close()
 	}()
 
 	for {
-		buf, err := iface.Read()
+		buf, err := tif.Read()
 		if err != nil {
 			fmt.Printf("[E] read iface fail: %v\n", err)
 			break
@@ -38,9 +35,14 @@ func main() {
 		//fmt.Println(buf)
 		version := buf[0] >> 4
 		if version == 4 {
-			datagram := vnet.NewIPV4Datagram(buf)
-			datagram.Print()
+			onIPV4(vnet.NewIPv4Datagram(buf), tif)
+		} else {
+			fmt.Printf("Unsupported ip version: %d \n", version)
 		}
 	}
+}
+
+func onIPV4(datagram *vnet.IPv4Datagram, tif *vnet.TunInterface)  {
+	datagram.Print()
 }
 
